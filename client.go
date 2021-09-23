@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-chassis/cari/discovery"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -142,7 +141,11 @@ func (c *Client) Create(ctx context.Context, kv KVRequest, opts ...OpOption) (*K
 			"status": resp.Status,
 			"body":   b,
 		}))
-		return nil, discovery.NewError(discovery.ErrInvalidParams, err.Error())
+		err, formatErr := getFormatError(b)
+		if err != nil {
+			return nil, fmt.Errorf(FmtOpFailed, kv.Key, resp.Status, b)
+		}
+		return nil, formatErr
 	}
 
 	kvs := &KVDoc{}
