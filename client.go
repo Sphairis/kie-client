@@ -140,7 +140,7 @@ func (c *Client) Create(ctx context.Context, kv KVRequest, opts ...OpOption) (*K
 			"status": resp.Status,
 			"body":   b,
 		}))
-		return nil, fmt.Errorf(FmtOpFailed, kv.Key, resp.Status, b)
+		return nil, fmt.Errorf(string(b))
 	}
 
 	kvs := &KVDoc{}
@@ -179,7 +179,7 @@ func (c *Client) Put(ctx context.Context, kv KVRequest, opts ...OpOption) (*KVDo
 			"status": resp.Status,
 			"body":   b,
 		}))
-		return nil, fmt.Errorf(FmtOpFailed, kv.Key, resp.Status, b)
+		return nil, fmt.Errorf(string(b))
 	}
 
 	kvs := &KVDoc{}
@@ -243,7 +243,7 @@ func (c *Client) List(ctx context.Context, opts ...GetOption) (*KVResponse, int,
 			"status": resp.Status,
 			"body":   b,
 		}))
-		return nil, responseRevision, fmt.Errorf(FmtOpFailed, options.Key, resp.Status, b)
+		return nil, responseRevision, fmt.Errorf(string(b))
 	} else if err != nil {
 		msg := fmt.Sprintf("get revision from response header failed when the request status is OK: %v", err)
 		openlog.Error(msg)
@@ -288,7 +288,7 @@ func (c *Client) Delete(ctx context.Context, kvIDs string, opts ...OpOption) err
 	}
 	b := ReadBody(resp)
 	if resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("delete %s failed,http status [%s], body [%s]", kvIDs, resp.Status, b)
+		return fmt.Errorf(string(b))
 	}
 	return nil
 }
@@ -317,7 +317,7 @@ func (c *Client) Get(ctx context.Context, kvID string, opts ...GetOption) (*KVDo
 			"status": resp.Status,
 			"body":   b,
 		}))
-		return nil, fmt.Errorf(FmtOpFailed, kvID, resp.Status, b)
+		return nil, fmt.Errorf(string(b))
 	}
 
 	var kv *KVDoc
