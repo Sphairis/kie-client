@@ -28,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-chassis/cari/pkg/errsvc"
 	"github.com/go-chassis/foundation/httpclient"
 	"github.com/go-chassis/openlog"
 )
@@ -129,18 +130,27 @@ func (c *Client) Create(ctx context.Context, kv KVRequest, opts ...OpOption) (*K
 	h := http.Header{}
 	h.Set(HeaderContentType, ContentTypeJSON)
 	body, _ := json.Marshal(kv)
+	openlog.Error("enter kie post")
 	resp, err := c.c.Do(ctx, http.MethodPost, url, h, body)
+	openlog.Error("finish kie post")
 	if err != nil {
 		return nil, err
 	}
 	b := ReadBody(resp)
+	openlog.Info(fmt.Sprintf("resp is %s", string(b)))
 	if resp.StatusCode != http.StatusOK {
+		openlog.Info(" resp.StatusCode != http.StatusOK")
 		openlog.Error(MsgOpFailed, openlog.WithTags(openlog.Tags{
 			"k":      kv.Key,
 			"status": resp.Status,
 			"body":   b,
 		}))
-		return nil, fmt.Errorf(FmtOpFailed, kv.Key, resp.Status, b)
+		err, formatErr := getFormatError(b)
+		if err != nil {
+			return nil, fmt.Errorf(FmtOpFailed, kv.Key, resp.Status, b)
+		}
+		openlog.Info(fmt.Sprintf(formatErr.Error()))
+		return nil, formatErr
 	}
 
 	kvs := &KVDoc{}
@@ -179,7 +189,11 @@ func (c *Client) Put(ctx context.Context, kv KVRequest, opts ...OpOption) (*KVDo
 			"status": resp.Status,
 			"body":   b,
 		}))
-		return nil, fmt.Errorf(FmtOpFailed, kv.Key, resp.Status, b)
+		err, formatErr := getFormatError(b)
+		if err != nil {
+			return nil, fmt.Errorf(FmtOpFailed, kv.Key, resp.Status, b)
+		}
+		return nil, formatErr
 	}
 
 	kvs := &KVDoc{}
@@ -243,7 +257,11 @@ func (c *Client) List(ctx context.Context, opts ...GetOption) (*KVResponse, int,
 			"status": resp.Status,
 			"body":   b,
 		}))
-		return nil, responseRevision, fmt.Errorf(FmtOpFailed, options.Key, resp.Status, b)
+		err, formatErr := getFormatError(b)
+		if err != nil {
+			return nil, responseRevision, fmt.Errorf(FmtOpFailed, options.Key, resp.Status, b)
+		}
+		return nil, responseRevision, formatErr
 	} else if err != nil {
 		msg := fmt.Sprintf("get revision from response header failed when the request status is OK: %v", err)
 		openlog.Error(msg)
@@ -288,7 +306,11 @@ func (c *Client) Delete(ctx context.Context, kvIDs string, opts ...OpOption) err
 	}
 	b := ReadBody(resp)
 	if resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("delete %s failed,http status [%s], body [%s]", kvIDs, resp.Status, b)
+		err, formatErr := getFormatError(b)
+		if err != nil {
+			return fmt.Errorf("delete %s failed,http status [%s], body [%s]", kvIDs, resp.Status, b)
+		}
+		return formatErr
 	}
 	return nil
 }
@@ -317,7 +339,11 @@ func (c *Client) Get(ctx context.Context, kvID string, opts ...GetOption) (*KVDo
 			"status": resp.Status,
 			"body":   b,
 		}))
-		return nil, fmt.Errorf(FmtOpFailed, kvID, resp.Status, b)
+		err, formatErr := getFormatError(b)
+		if err != nil {
+			return nil, fmt.Errorf(FmtOpFailed, kvID, resp.Status, b)
+		}
+		return nil, formatErr
 	}
 
 	var kv *KVDoc
@@ -332,6 +358,12 @@ func (c *Client) Get(ctx context.Context, kvID string, opts ...GetOption) (*KVDo
 //CurrentRevision return the current local revision of kie, which is updated during the last polling request
 func (c *Client) CurrentRevision() int {
 	return c.currentRevision
+}
+
+func getFormatError(b []byte) (error, error) {
+	formatErr := &errsvc.Error{}
+	err := json.Unmarshal(b, formatErr)
+	return err, formatErr
 }
 
 // ReadBody read body from the from the response
