@@ -130,12 +130,16 @@ func (c *Client) Create(ctx context.Context, kv KVRequest, opts ...OpOption) (*K
 	h := http.Header{}
 	h.Set(HeaderContentType, ContentTypeJSON)
 	body, _ := json.Marshal(kv)
+	openlog.Error("enter kie post")
 	resp, err := c.c.Do(ctx, http.MethodPost, url, h, body)
+	openlog.Error("finish kie post")
 	if err != nil {
 		return nil, err
 	}
 	b := ReadBody(resp)
+	openlog.Info(fmt.Sprintf("resp is %s", string(b)))
 	if resp.StatusCode != http.StatusOK {
+		openlog.Info(" resp.StatusCode != http.StatusOK")
 		openlog.Error(MsgOpFailed, openlog.WithTags(openlog.Tags{
 			"k":      kv.Key,
 			"status": resp.Status,
@@ -145,6 +149,7 @@ func (c *Client) Create(ctx context.Context, kv KVRequest, opts ...OpOption) (*K
 		if err != nil {
 			return nil, fmt.Errorf(FmtOpFailed, kv.Key, resp.Status, b)
 		}
+		openlog.Info(fmt.Sprintf(formatErr.Error()))
 		return nil, formatErr
 	}
 
